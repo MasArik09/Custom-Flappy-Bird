@@ -35,7 +35,7 @@ Dokumen ini berisi daftar urutan tugas teknis yang dipecah secara granular (per 
 ### Tugas 2.1: Pembuatan Properti Awal Karakter (Bird.js)
 * **Deskripsi:** Buat kelas representasi karakter burung dengan variabel fisikanya.
 * **Target Spesifik:**
-  - Buat kelas `Bird` di dalam `src/Bird.js` beserta properti konstruktor: `x` (posisi horizontal awal), `y` (posisi vertikal tengah), `radius = 16`, `velocityY = 0`, `gravity = 0.25`, `jumpForce = 5.5`, `flyAcceleration = 0.4`, `hp = 3`, dan `isInvincible = false`.
+  - Buat kelas `Bird` di dalam `src/Bird.js` beserta properti konstruktor: `x` (posisi horizontal awal), `y` (posisi vertikal tengah), `radius = 16`, `velocityY = 0`, `gravity = 0.35`, `jumpForce = 5.2`, `flyAcceleration = 0.20`, `terminalVelocity = 8.0`, `hp = 3`, dan `isInvincible = false`.
 
 ### Tugas 2.2: Logika Pergerakan Vertikal & Gambar (Bird.js)
 * **Deskripsi:** Terapkan kalkulasi jatuh bebas dan penggambaran bentuk visual karakter.
@@ -56,7 +56,7 @@ Dokumen ini berisi daftar urutan tugas teknis yang dipecah secara granular (per 
 ### Tugas 3.1: Pembuatan Properti Rintangan (Pipe.js)
 * **Deskripsi:** Buat kelas cetak biru untuk sepasang pipa rintangan.
 * **Target Spesifik:**
-  - Buat kelas `Pipe` di dalam `src/Pipe.js` dengan properti konstruktor: `x` (posisi awal di ujung kanan layar), `width = 60`, `speed = 3.0`, `gap = 150` (lebar celah vertikal kosong), `topHeight` (tinggi acak untuk pipa atas), `bottomY = topHeight + gap`, `isDynamic` (boolean), dan `hasPassed = false`.
+  - Buat kelas `Pipe` di dalam `src/Pipe.js` dengan properti konstruktor: `x` (posisi awal di ujung kanan layar), `width = 40`, `speed = 3.0`, `gap = 170` (lebar celah vertikal kosong), `topHeight` (tinggi acak untuk pipa atas), `bottomY = topHeight + gap`, `isDynamic` (boolean), dan `hasPassed = false`.
 
 ### Tugas 3.2: Logika Pergerakan Horizontal & Gambar Pipa (Pipe.js)
 * **Deskripsi:** Terapkan kalkulasi laju pipa mundur ke arah kiri.
@@ -112,8 +112,8 @@ Dokumen ini berisi daftar urutan tugas teknis yang dipecah secara granular (per 
 ### Tugas 5.4: Implementasi Pipa Bergerak Vertikal & Difficulty Scaling (Pipe.js & Game.js)
 * **Deskripsi:** Terapkan tantangan pergerakan pipa linier berkala dan peningkatan kecepatan berkala.
 * **Target Spesifik:**
-  - Di dalam fungsi pembaruan `Pipe.js`, jika properti `isDynamic` bernilai true, gerakkan ketinggian pipa atas dan pipa bawah naik-turun secara vertikal dengan kecepatan linear tetap sebesar `1.5`. Balikkan arah gerak secara instan jika batas tinggi pipa menyentuh ambang toleransi 50 pixel dari batas atas atau batas bawah canvas.
-  - Di dalam kelas `Game.js`, buat fungsi pengecekan thresholds kesulitan: Jika jarak pemain berada di rentang 0-50m set `speed = 3.0`, jika jarak berada di rentang 51-100m naikkan secara melompat ke `speed = 4.2`, dan jika jarak sudah melebihi 101m kunci kecepatan maksimal lingkungan permainan pada angka `5.5`.
+  - Di dalam fungsi pembaruan `Pipe.js`, jika properti `isDynamic` bernilai true, gerakkan ketinggian pipa atas dan pipa bawah naik-turun secara vertikal dengan kecepatan linear tetap sebesar `0.8`. Balikkan arah gerak secara instan jika batas tinggi pipa menyentuh ambang toleransi 50 pixel dari batas atas (`50px`) atau 320 pixel dari batas atas (`320px`) canvas.
+  - Di dalam kelas `Game.js`, buat fungsi pengecekan thresholds kesulitan: Jika jarak pemain berada di rentang 0-100m set `speed = 3.0`, jika jarak berada di rentang 101-200m naikkan secara melompat ke `speed = 3.6`, dan jika jarak sudah melebihi 201m kunci kecepatan maksimal lingkungan permainan pada angka `4.4`.
   - Saat proses melahirkan objek pipa baru di `Game.js`, cek apakah angka pembulatan jarak saat ini merupakan kelipatan jarak 100 meter (dengan rentang toleransi sisa 0 sampai 15 meter). Jika iya, lahirkan objek pipa tersebut dengan memberikan parameter boolean `isDynamic = true` agar pipanya bergerak vertikal.
 
 ---

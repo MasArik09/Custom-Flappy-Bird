@@ -10,20 +10,23 @@ Proyek ini adalah pengembangan game berbasis web (*web-based game*) bergenre *si
 ### 2.1. Mekanik Kontrol & Pergerakan Burung (Flap Mechanics)
 * **Input Utama:** Keyboard (Spacebar / Panah Atas) atau Klik Mouse.
 * **Jenis Input & Respons:**
-    * *Single Click / Tap:* Burung akan melesat ke atas dengan ketinggian lompatan statis yang instan.
-    * *Long Press (Ditekan lama):* Burung akan terbang naik secara kontinu ke atas. Ketinggian terbang bertambah secara proporsional sesuai dengan durasi tombol ditekan oleh pemain.
-* **Efek Gravitasi:** Konstan (tidak eksponensial). Ketika tidak ada input dari pengguna, burung akan jatuh ke bawah dengan kecepatan vertikal yang stabil/konstan guna memberikan predibilitas pergerakan yang tinggi bagi pemain.
+    * *Single Click / Tap:* Burung melompat ke atas dengan impuls instan (`jumpForce = 5.2`).
+    * *Long Press (Ditekan lama):* Burung terbang naik secara kontinu ke atas menggunakan akselerasi vertikal (`flyAcceleration = 0.20`).
+* **Efek Gravitasi:** Kecepatan jatuh bertambah secara linier berdasarkan gravitasi (`gravity = 0.35`) hingga mencapai kecepatan jatuh maksimal (*terminal velocity = 8.0*) guna memberikan predibilitas pergerakan yang tinggi dan kontrol yang mantap bagi pemain.
 
 ### 2.2. Mekanik Rintangan (Pipa / Obstacles)
-* **Jarak Horizontal:** Jarak antar pipa secara horizontal diatur selalu sama/konsisten di sepanjang permainan.
-* **Lebar Celah Vertikal:** Tinggi celah kosong (tempat burung lewat) diatur statis dan konstan (tidak mengecil). Namun, posisi vertikal (ketinggian) celah tersebut di-generate secara acak pada setiap pipa baru.
+* **Jarak Horizontal:** Jarak spawn antar pipa diatur konsisten sebesar `200px` dari pipa sebelumnya.
+* **Dimensi Pipa & Celah:** Lebar badan pipa adalah `40px` (dibuat ramping) dan tinggi celah vertikal kosong tempat lewat burung diatur statis sebesar `170px` (diperlebar) untuk kenyamanan manuver burung. Posisi vertikal celah di-generate secara acak di setiap kemunculan pipa.
 * **Fase Pipa Bergerak (Dynamic Obstacle Phase):**
-    * Mekanik ini aktif hanya ketika skor pemain sudah mencapai jarak/poin tertentu yang jauh.
-    * Pipa akan bergerak naik-turun secara vertikal untuk menambah kesulitan.
-    * Mekanik ini **bukan bersifat permanen**, melainkan sebuah *event* berkala yang hanya berlangsung selama beberapa saat, kemudian kondisi pergerakan pipa akan kembali normal (statis kembali).
+    * Mekanik ini aktif pada jarak $\ge 100$ meter dan hanya terpicu secara berkala (setiap kelipatan 100 meter, berlangsung selama 15 meter awal fase tersebut).
+    * Pipa bergerak naik-turun secara vertikal dengan kecepatan linear stabil (`verticalSpeed = 0.8`) dan berbalik arah otomatis saat menyentuh batas atas (`50px`) atau batas bawah (`320px` tinggi pipa atas) layar.
+    * Fase ini bersifat temporer, pipa baru setelah melewati rentang 15 meter akan kembali statis.
 
 ### 2.3. Tingkat Kesulitan Berjenjang (Difficulty Scaling)
-* Game menerapkan sistem *Speed Progression*. Seiring bertambah jauhnya jarak/skor pemain, **Kecepatan Scroll Lingkungan (Pipa dan Background bergerak ke kiri)** akan meningkat secara bertahap pada *threshold* (ambang batas) skor tertentu yang telah ditentukan (misal: bertambah cepat pada skor 50, dan bertambah cepat lagi pada skor 100).
+* Game menerapkan sistem *Speed Progression* berbasis jarak (Meter):
+    * **0 - 100 Meter (Easy):** Kecepatan scroll lingkungan = `3.0`.
+    * **101 - 200 Meter (Medium):** Kecepatan scroll lingkungan = `3.6`.
+    * **201+ Meter (Hard):** Kecepatan scroll lingkungan = `4.4`.
 
 ---
 
@@ -31,14 +34,15 @@ Proyek ini adalah pengembangan game berbasis web (*web-based game*) bergenre *si
 
 ### 3.1. Sistem Perhitungan Skor (Scoring System)
 Skor dihitung menggunakan akumulasi dari dua komponen:
-1.  **Skor Jarak (Distance Score):** Skor otomatis bertambah secara berkala berdasarkan waktu bertahan hidup (dikonversikan ke dalam satuan Meter).
-2.  **Skor Pipa (Obstacle Score):** Pemain mendapatkan bonus poin tambahan ketika berhasil melewati pipa. Skor pipa baru dinyatakan sah (bertambah) **tepat ketika seluruh badan burung telah melewati batas bagian belakang pipa**.
+1.  **Skor Jarak (Distance Score):** Bertambah secara kontinu seiring waktu bertahan hidup (ditambahkan sebanyak 5 meter per detik).
+2.  **Skor Pipa (Obstacle Score):** Pemain mendapatkan bonus tambahan sebesar **15 Meter** ketika berhasil melewati pipa (diukur tepat saat seluruh badan burung melewati batas bagian belakang pipa).
 
 ### 3.2. Sistem Nyawa & Kondisi Kalah (Hitbox & Health Points)
-* **Sistem Nyawa:** Pemain dibekali dengan **3 Nyawa (Health Points/HP)** pada awal permainan.
-* **Hitbox Pipa:** Sangat ketat (*strict hitbox*). Sentuhan sekecil apa pun antara badan burung dengan pipa akan mengurangi nyawa sebanyak 1 poin.
-* **Hitbox Batas Atas/Bawah (Tanah & Langit):** Memiliki toleransi longgar (*forgiving hitbox*). Jika burung menyentuh batas tanah atau batas atas layar, diberikan toleransi sedikit sebelum nyawa berkurang.
-* **Kondisi Game Over:** Game over hanya akan terpicu jika ke-3 nyawa pemain telah habis terpakai (HP = 0).
+* **Sistem Nyawa:** Pemain dibekali dengan **3 Nyawa (HP)** di awal permainan.
+* **Invincibility Frames (i-frames):** Ketika menabrak pipa, nyawa berkurang 1 HP dan burung masuk ke masa kebal selama **1.5 detik** (visual berkedip) untuk menghindari pengurangan nyawa beruntun pada rintangan yang sama.
+* **Hitbox Pipa:** Sangat ketat sesuai radius fisik burung (`radius = 16px`) dan batas luar pipa.
+* **Hitbox Batas Atas/Bawah (Tanah & Langit):** Memiliki toleransi longgar sebesar `5px` sebelum nyawa berkurang.
+* **Kondisi Game Over:** Game over terpicu ketika HP mencapai 0.
 
 ### 3.3. Penyimpanan Skor Tertinggi (High Score Persistence)
 * **State:** High Score disimpan di dalam memori aplikasi menggunakan variabel JavaScript runtime (bukan `localStorage`).

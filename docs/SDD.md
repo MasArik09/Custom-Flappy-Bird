@@ -53,41 +53,42 @@ Kelas ini bertindak sebagai otak utama permainan yang mengatur transisi layar (s
 Kelas yang bertanggung jawab penuh terhadap kalkulasi fisika pergerakan karakter, penanganan input mekanik lompat/terbang, dan manajemen masa kebal (i-frames).
 
 * Properties:
-    * x, y: Koordinat posisi pusat burung pada canvas.
-    * radius: Ukuran tubuh burung untuk kebutuhan kalkulasi visual lingkaran dan ukuran hitbox.
+    * x, y: Koordinat posisi pusat burung pada canvas (awal: x=150, y=270).
+    * radius: Ukuran tubuh burung untuk kebutuhan kalkulasi visual lingkaran dan ukuran hitbox (`16`).
     * velocityY: Kecepatan gerak vertikal objek burung.
-    * gravity: Nilai konstanta gaya tarik ke bawah yang stabil dan konstan (linear).
-    * jumpForce: Impuls instan ke atas saat tombol dilepas atau diklik singkat.
-    * flyAcceleration: Gaya dorong ke atas kontinu saat tombol ditekan lama (long press).
-    * isInvincible: Status boolean kekebalan burung pasca-tabrakan agar tidak langsung mati beruntun.
-    * invincibilityTimer: Penghitung mundur durasi sisa masa kebal (diset selama 1.5 detik).
-    * blinkTimer: Variabel bantu untuk mengatur efek visual berkedip (blinking effect) burung saat kebal.
-    * hp: Jumlah sisa nyawa burung (diinisialisasi berangka awal 3).
+    * gravity: Gaya tarik ke bawah (`0.35`).
+    * jumpForce: Impuls melompat ke atas (`5.2`).
+    * flyAcceleration: Gaya dorong naik saat tombol ditekan lama (`0.20`).
+    * terminalVelocity: Batas kecepatan jatuh bebas maksimal (`8.0`).
+    * isInvincible: Status boolean kekebalan burung pasca-tabrakan.
+    * invincibilityTimer: Sisa durasi masa kebal (diset selama 1.5 detik).
+    * blinkTimer: Variabel bantu untuk mengatur efek visual berkedip (blinking effect).
+    * hp: Jumlah sisa nyawa burung (awal: 3).
 
 * Methods:
-    * update(dt, isLongPress): Menghitung perpindahan posisi y berdasarkan velocityY dan gravity. Jika isLongPress bernilai true, aplikasikan variabel flyAcceleration. Fungsi ini juga otomatis mengelola pengurangan invincibilityTimer.
-    * draw(ctx): Menggambar bentuk lingkaran murni representasi burung menggunakan fungsi ctx.arc(). Jika isInvincible aktif, manipulasi nilai opacity canvas menggunakan globalAlpha secara berkala untuk menciptakan efek berkedip.
-    * flap(): Mengatur kecepatan vertikal secara instan untuk melompat ke atas (velocityY = -jumpForce).
-    * triggerInvincibility(): Mengaktifkan status isInvincible = true selama 1.5 detik dan mengurangi hp sebanyak 1 poin.
+    * update(dt, isLongPress): Menghitung kecepatan vertikal (`velocityY`) berdasarkan input. Jika `isLongPress` aktif, kurangi `velocityY` dengan `flyAcceleration * timeScale`; jika tidak, tambahkan dengan `gravity * timeScale`. Batasi dengan `terminalVelocity`. Hitung posisi `y` dan update `invincibilityTimer`/`blinkTimer`.
+    * draw(ctx): Menggambar karakter burung secara prosedural detail (Tail/Feathers, Body yellow circle, Belly white curve, big cartoon Eye with Pupil, orange Beak, and flapping Wing rotated using `Math.sin(performance.now() / 80)`). Jika `isInvincible` aktif, berikan kedipan opacity `globalAlpha` bergantian antara `0.2` dan `0.7`.
+    * flap(): Mengatur kecepatan vertikal secara instan untuk melompat ke atas (`velocityY = -jumpForce`).
+    * triggerInvincibility(): Mengaktifkan status `isInvincible = true` selama 1.5 set dan mengurangi `hp` sebanyak 1 poin.
 
 ### 2.3 Pipe Component (Pipe.js)
 Kelas rintangan yang mengatur pembuatan sepasang pipa (atas dan bawah), pergerakan horizontal ke kiri, serta fase pergerakan dinamis vertikal.
 
 * Properties:
     * x: Posisi koordinat horizontal pipa di ujung kanan canvas saat pertama kali muncul.
-    * width: Lebar pipa secara horizontal (nilainya statis).
-    * topHeight: Tinggi pipa bagian atas yang nilainya di-generate secara acak.
-    * gap: Lebar celah vertikal kosong di antara kedua pipa tempat burung lewat (nilainya statis).
-    * bottomY: Koordinat titik awal mulainya pipa bagian bawah yang dihitung dari topHeight ditambah gap.
-    * speed: Kecepatan gerak horizontal mundur ke kiri mengikuti tingkat difficulty game.
+    * width: Lebar pipa secara horizontal (`40`).
+    * topHeight: Tinggi pipa bagian atas yang di-generate secara acak (berkisar antara `50` hingga `320`).
+    * gap: Lebar celah vertikal kosong tempat lewat burung (`170`).
+    * bottomY: Koordinat awal pipa bawah, dihitung dari `topHeight + gap`.
+    * speed: Kecepatan gerak horizontal mundur ke kiri sesuai tingkat difficulty.
     * isDynamic: Boolean penanda apakah pipa ini masuk dalam fase bergerak naik-turun atau tidak.
-    * verticalSpeed: Kecepatan gerak vertikal tetap khusus untuk pipa dinamis.
+    * verticalSpeed: Kecepatan gerak vertikal tetap (`0.8`).
     * direction: Arah gerak vertikal (bernilai 1 untuk bergerak ke bawah, dan -1 untuk ke atas).
-    * hasPassed: Boolean penanda untuk memastikan pipa ini hanya menyumbang skor bonus sekali saja setelah seluruh badan burung melewatinya.
+    * hasPassed: Boolean penanda untuk pencatatan skor bonus pipa (hanya dihitung sekali).
 
 * Methods:
-    * update(dt, currentDistance): Mengurangi posisi x berdasarkan speed lingkungan. Jika properti isDynamic aktif, posisi vertikal pipa diubah secara konstan menggunakan perkalian antara verticalSpeed dan direction. Lakukan pembalikan arah gerak (direction dikali -1) jika gerakan pipa menyentuh batas ambang toleransi atas atau bawah layar.
-    * draw(ctx): Menggambar sepasang kotak rintangan (pipa atas dan bawah) secara murni memanfaatkan fungsi ctx.fillRect().
+    * update(dt): Mengurangi posisi `x` berdasarkan `speed`. Jika `isDynamic` aktif, perbarui `topHeight` dengan `verticalSpeed * direction * timeScale`. Jika menyentuh batas `50` atau `320`, balikkan arah (`direction *= -1`). Sinkronkan `bottomY = topHeight + gap`.
+    * draw(ctx): Menggambar sepasang rintangan (pipa atas dan bawah) berwarna hijau cerah (`#2ecc71`) dengan outline hijau gelap (`#27ae60`, `lineWidth = 3`) memanfaatkan `fillRect` dan `strokeRect`.
 
 ### 2.4 UI & HUD Component (UI.js)
 Kelas pasif yang bertugas menerima data mentah dari Game.js untuk dirender menjadi representasi teks visual di atas canvas permainan. Kelas ini terisolasi dari kalkulasi logika game.
@@ -133,9 +134,9 @@ Deteksi tabrakan antara komponen Bird (Lingkaran) dengan komponen Pipe (Kotak) w
 
 ### 3.2 Difficulty Scaling (Ambang Jarak)
 Peningkatan kecepatan permainan diset melompat secara signifikan berdasarkan tingkat kemajuan meter jarak pemain demi menjaga aspek permainan yang tetap menantang namun tetap playable:
-- Jarak 0 meter sampai 50 meter (Easy Mode): Kecepatan scroll pipa diset statis pada angka 3.0.
-- Jarak 51 meter sampai 100 meter (Medium Mode): Kecepatan scroll pipa melompat naik ke angka 4.2.
-- Jarak 101 meter ke atas (Hard Mode): Kecepatan scroll pipa melompat naik ke angka maksimal 5.5.
+- Jarak 0 meter sampai 100 meter (Easy Mode): Kecepatan scroll pipa diset pada angka `3.0`.
+- Jarak 101 meter sampai 200 meter (Medium Mode): Kecepatan scroll pipa naik ke angka `3.6`.
+- Jarak 201 meter ke atas (Hard Mode): Kecepatan scroll pipa naik ke angka maksimal `4.4`.
 
 ### 3.3 Dynamic Obstacle (Pipa Bergerak Linier)
 Logika pengaktifan fase rintangan pipa bergerak naik-turun dikendalikan terpusat menggunakan implementasi cetak biru logika berikut:
@@ -146,8 +147,21 @@ Logika pengaktifan fase rintangan pipa bergerak naik-turun dikendalikan terpusat
 |                      && (distanceTrigger >= 100);                                 |
 |                                                                                   |
 |  if (isEventActive) {                                                             |
-|      this.pipes.push(new Pipe(canvas.width, currentSpeed, true));                 |
+|      this.pipes.push(new Pipe(this.canvas.width, currentSpeed, true));            |
 |  } else {                                                                         |
-|      this.pipes.push(new Pipe(canvas.width, currentSpeed, false));                |
+|      this.pipes.push(new Pipe(this.canvas.width, currentSpeed, false));           |
+|  }                                                                                |
+|                                                                                   |
+|  // Di dalam Pipe.js update(dt):                                                  |
+|  if (this.isDynamic) {                                                            |
+|      this.topHeight += this.verticalSpeed * this.direction * timeScale;           |
+|      if (this.topHeight < 50) {                                                   |
+|          this.topHeight = 50;                                                     |
+|          this.direction = 1;                                                      |
+|      } else if (this.topHeight > 320) {                                           |
+|          this.topHeight = 320;                                                    |
+|          this.direction = -1;                                                     |
+|      }                                                                            |
+|      this.bottomY = this.topHeight + this.gap;                                    |
 |  }                                                                                |
 +-----------------------------------------------------------------------------------+

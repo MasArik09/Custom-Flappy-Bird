@@ -107,9 +107,15 @@ Karena game ini difokuskan penuh untuk tampilan layar monitor PC, area Canvas HT
 ## 4. UX & Component Rendering Specifications
 
 ### 4.1 Modul Hati Merah (HP Component)
-Sisa nyawa pemain tidak digambar menggunakan teks, melainkan menggunakan bentuk geometri hati murni lewat instruksi konteks Canvas 2D. Kelas UI.js wajib menggambar bentuk hati sebanyak sisa variabel hp burung (maksimal 3):
-- Menggunakan ctx.fillStyle = 'red' untuk pewarnaan.
-- Posisi koordinat diletakkan berjejer horizontal di pojok kiri atas canvas dengan jarak antar hati sebesar 10 pixel.
+Sisa nyawa pemain digambar menggunakan geometri hati murni (*love shape*) lewat instruksi konteks Canvas 2D. Kelas `UI.js` menggambar bentuk hati sebanyak sisa variabel hp burung (maksimal 3):
+- Menggunakan `bezierCurveTo` dengan koordinat lengkungan presisi untuk membentuk hati yang halus dan proporsional.
+- Warna hati aktif menggunakan `#ff4757` (merah cerah) dan hati kosong menggunakan `rgba(255, 255, 255, 0.15)` (siluet transparan).
+- Posisi diletakkan berjejer horizontal di pojok kiri atas canvas (mulai dari `x = 30px`, berjarak `35px` antar hati, ukuran `size = 22px`).
 
 ### 4.2 Tombol Interaktif (Start & Restart)
-Kotak tombol Start dan Restart digambar menggunakan kombinasi ctx.fillRect() untuk latar kotak, ctx.strokeStyle untuk garis tepi tombol, dan ctx.fillText() untuk teks di dalamnya. Koordinat batas tombol (bounding box) didaftarkan ke Game.js agar deteksi klik mouse pengguna tepat mengenai area tombol tersebut.
+Kotak tombol Start dan Restart digambar menggunakan kombinasi `drawRoundedRect()` untuk latar kotak membulat dengan gradasi warna/transparansi, `strokeStyle` untuk garis tepi, dan `fillText()` untuk teks di dalamnya. Koordinat batas tombol (bounding box) didaftarkan ke `Game.js` agar deteksi klik mouse pengguna tepat mengenai area tombol tersebut.
+
+### 4.3 Awan Latar Belakang (Background Clouds)
+Latar belakang langit dilengkapi dengan awan putih halus yang melayang di belakang rintangan pipa untuk memberikan efek kedalaman (*depth*):
+- Awan digambar secara prosedural menggabungkan beberapa lengkungan lingkaran (`ctx.arc()`) berwarna semi-transparan `rgba(255, 255, 255, 0.08)`.
+- Menggunakan 4 awan yang bergerak ke kiri dengan kecepatan sangat lambat (`0.15` hingga `0.3`) untuk efek paralaks. Awan yang keluar dari kiri layar otomatis di-recycle ke sebelah kanan dengan posisi Y, skala, dan kecepatan acak.

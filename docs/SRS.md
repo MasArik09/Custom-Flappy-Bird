@@ -39,22 +39,22 @@ Kode program tidak boleh ditulis dalam satu file tunggal besar, melainkan harus 
 ### 3.2 Component Specifications
 
 #### A. Bird Component (Bird.js)
-* Physics Properties: Memiliki variabel posisi (x, y), kecepatan vertikal (velocityY), dan nilai konstanta gravitasi tetap (gravity) yang konstan (not exponential) untuk menjamin pergerakan jatuh yang mudah diprediksi.
+* Physics Properties: Memiliki variabel posisi (x, y), kecepatan vertikal (velocityY), konstanta gravitasi (`gravity = 0.35`), kekuatan lompat instan (`jumpForce = 5.2`), kekuatan akselerasi terbang kontinu (`flyAcceleration = 0.20`), dan batas kecepatan jatuh bebas maksimal (`terminalVelocity = 8.0`).
 * Input Handling Logic:
-    * Click/Tap/Spacebar: Memberikan impuls instan ke atas (velocityY = -jumpForce) untuk ketinggian melompat statis.
-    * Long Press: Selama input ditahan, berikan akselerasi ke atas secara kontinu, membuat burung terbang naik secara proporsional sesuai dengan durasi tombol tekanan.
+    * Click/Tap/Spacebar: Memberikan impuls instan ke atas (`velocityY = -jumpForce`).
+    * Long Press: Selama input ditahan, kurangi `velocityY` dengan `flyAcceleration` secara terus-menerus dikalikan delta time, membuat burung melayang naik secara proporsional.
 * Invincibility Frames (i-frames):
-    * Memiliki flag boolean isInvincible (default: false) dan invincibilityTimer.
-    * Ketika burung menabrak pipa, nyawa berkurang 1, dan isInvincible berubah menjadi true selama 1.5 detik.
-    * Selama masa i-frames, burung kebal dari pengurangan nyawa akibat menabrak pipa kembali (mencegah mati beruntun dalam sekejap saat terjebak di pipa yang sama), dan visual burung digambar berkedip (blinking effect via modifikasi nilai opacity pada Canvas).
+    * Memiliki flag boolean `isInvincible` (default: false), `invincibilityTimer`, dan `blinkTimer`.
+    * Ketika burung menabrak pipa atau batas layar, nyawa berkurang 1 HP, dan `isInvincible` berubah menjadi true selama 1.5 detik.
+    * Selama masa i-frames, burung kebal dari tabrakan tambahan dan digambar berkedip (visual flashing) dengan memanipulasi opacity `globalAlpha` pada Canvas (berkedip antara `0.2` dan `0.7` secara berkala).
 
 #### B. Pipe Component (Pipe.js)
-* Movement Properties: Bergerak horizontal dari kanan ke kiri berdasarkan variabel speed (merepresentasikan burung bergerak maju). Kecepatan scroll lingkungan ini akan meningkat bertahap pada threshold skor tertentu sebagai bentuk difficulty scaling.
+* Sizing & Spacing: Lebar pipa `width = 40`, lebar celah vertikal `gap = 170` (statis). Spawn pipa baru terpicu saat pipa terakhir berjarak `200px` dari batas kanan canvas.
+* Movement Properties: Bergerak horizontal dari kanan ke kiri berdasarkan variabel `speed`. Kecepatan scroll ini bertambah secara berjenjang berdasarkan jarak: 0-100m (`3.0`), 101-200m (`3.6`), >200m (`4.4`).
 * Dynamic Obstacle Event Trigger:
-    * Menerapkan pengecekan berkala berdasarkan variabel jarak saat ini (currentDistance).
-    * Kondisi Event: Aktif setiap kelipatan jarak 100 meter.
-    * Durasi Event: Berlangsung sejauh 15 meter sejak trigger aktif.
-    * Perilaku Event: Pipa yang di-generate pada fase ini akan bergerak naik-turun secara vertikal menggunakan fungsi sinusoidal (Math.sin) untuk membatasi rentang pergerakannya secara halus. Setelah melewati batas 15 meter, pipa baru kembali ke kondisi statis (diam secara vertikal).
+    * Menerapkan pengecekan berkala berdasarkan variabel jarak saat ini (`currentDistance`).
+    * Kondisi Event: Terjadi pada jarak $\ge 100$ meter, saat pembulatan ke bawah jarak modulo 100 berada dalam rentang `0` sampai `15` meter (`dTrigger % 100 >= 0 && dTrigger % 100 <= 15`).
+    * Perilaku Event: Pipa yang lahir pada fase ini memiliki `isDynamic = true`. Pipa akan bergerak naik-turun secara vertikal secara linear dengan `verticalSpeed = 0.8`. Arah gerak vertikal berbalik ketika tinggi pipa atas berada di luar rentang `50px` hingga `320px`. Pipa baru di luar rentang jarak event ini akan kembali statis.
 
 #### C. Audio Component (Audio.js)
 * Menggunakan HTML5 Audio Element atau Web Audio API untuk memuat dan mengeksekusi efek suara.
