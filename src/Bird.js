@@ -51,8 +51,10 @@ export class Bird {
         // Manage invincibility frames countdown if active
         if (this.isInvincible) {
             this.invincibilityTimer -= dt;
+            this.blinkTimer += dt;
             if (this.invincibilityTimer <= 0) {
                 this.isInvincible = false;
+                this.blinkTimer = 0;
             }
         }
     }
@@ -64,6 +66,16 @@ export class Bird {
     draw(ctx) {
         ctx.save();
         
+        // Blink effect if invincible: alternate opacity periodically
+        if (this.isInvincible) {
+            // Alternate opacity every ~100ms based on blinkTimer
+            if (Math.floor(this.blinkTimer * 10) % 2 === 0) {
+                ctx.globalAlpha = 0.2;
+            } else {
+                ctx.globalAlpha = 0.7;
+            }
+        }
+
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
         ctx.fillStyle = 'yellow';
@@ -78,5 +90,19 @@ export class Bird {
      */
     flap() {
         this.velocityY = -this.jumpForce;
+    }
+
+    /**
+     * Reduces HP by 1 and activates invincibility frames for 1.5 seconds
+     */
+    triggerInvincibility() {
+        this.isInvincible = true;
+        this.invincibilityTimer = 1.5;
+        this.blinkTimer = 0;
+        this.hp -= 1;
+        if (this.hp < 0) {
+            this.hp = 0;
+        }
+        console.log(`Bird hit! HP remaining: ${this.hp}. Invincibility activated.`);
     }
 }

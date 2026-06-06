@@ -1,4 +1,6 @@
 import { Pipe } from './Pipe.js';
+import { Bird } from './Bird.js';
+import { UI } from './UI.js';
 
 export class Game {
     constructor() {
@@ -16,10 +18,14 @@ export class Game {
         this.lastTime = 0;
 
         // Core Game properties
-        this.bird = null;
+        this.bird = new Bird(150, 270); // Posisi awal x=150, y=270 (tengah-tengah vertical)
         this.pipes = []; // Centralized pipe array
-        this.ui = null;
+        this.ui = new UI();
         this.audio = null;
+
+        // Input and state helpers
+        this.isJumpPressed = false;
+        this.isMuted = false;
         
         this.currentDistance = 0;
         this.highScore = 0;
@@ -30,9 +36,13 @@ export class Game {
      */
     init() {
         console.log("Game initialized and starting game loop...");
-        
-        // For testing purposes during early phases, let's allow starting directly in PLAYING
-        // when init is called, or we can keep it as MENU. Let's keep it MENU as default.
+
+        // Setup event listeners
+        window.addEventListener('keydown', (e) => this.handleInput('keydown', e));
+        window.addEventListener('keyup', (e) => this.handleInput('keyup', e));
+        this.canvas.addEventListener('mousedown', (e) => this.handleInput('mousedown', e));
+        this.canvas.addEventListener('mouseup', (e) => this.handleInput('mouseup', e));
+
         this.start();
     }
 
@@ -67,25 +77,125 @@ export class Game {
     }
 
     /**
+     * Difficulty scaling check: returns environmental scroll speed based on player progress
+     * @returns {number} Speed constant
+     */
+    getCurrentSpeed() {
+        const distance = this.currentDistance;
+        if (distance <= 50) {
+            return 3.0; // Easy Mode
+        } else if (distance <= 100) {
+            return 4.2; // Medium Mode
+        } else {
+            return 5.5; // Hard Mode
+        }
+    }
+
+    /**
      * Updates game logic based on elapsed time (delta time)
      * @param {number} dt - Delta time in seconds
      */
     update(dt) {
         // Only update gameplay entities when in PLAYING state
         if (this.currentState === 'PLAYING') {
-            // Update all pipes
+            // 1. Increment distance based on survival time (5 meters per second)
+            this.currentDistance += dt * 5;
+
+            // Get current environmental speed based on progress thresholds
+            const currentSpeed = this.getCurrentSpeed();
+
+            // 2. Update bird physics, passing long press status
+            if (this.bird) {
+                this.bird.update(dt, this.isJumpPressed);
+            }
+
+            // 3. Update all pipes & check for pipe clearing score bonus
             for (let i = 0; i < this.pipes.length; i++) {
-                this.pipes[i].update(dt);
+                const pipe = this.pipes[i];
+                
+                // Adjust speed dynamically to match current difficulty scaling
+                pipe.speed = currentSpeed;
+                pipe.update(dt);
+
+                // Check if the entire bird body has passed the back edge of the pipe
+                if (this.bird && !pipe.hasPassed) {
+                    if (pipe.x + pipe.width < this.bird.x - this.bird.radius) {
+                        this.currentDistance += 15; // Give significant bonus score (15m)
+                        pipe.hasPassed = true;
+                        console.log(`Cleared pipe! +15M Bonus. Current Score: ${Math.floor(this.currentDistance)} M`);
+                    }
+                }
+            }
+
+            // 4. Collision checking (only if bird exists and is not currently invincible)
+            if (this.bird && !this.bird.isInvincible) {
+                let collided = false;
+
+                // A. Upper & Lower screen boundaries check with 5px forgiving tolerance
+                if (this.bird.y - this.bird.radius < -5) {
+                    collided = true;
+                } else if (this.bird.y + this.bird.radius > 545) { // 540 (canvas height) + 5
+                    collided = true;
+                }
+
+                // B. Obstacle pipes collision check
+                if (!collided) {
+                    for (let i = 0; i < this.pipes.length; i++) {
+                        const pipe = this.pipes[i];
+
+                        // Create bounding boxes for top and bottom pipes
+                        const topPipeRect = {
+                            x: pipe.x,
+                            y: 0,
+                            width: pipe.width,
+                            height: pipe.topHeight
+                        };
+                        const bottomPipeRect = {
+                            x: pipe.x,
+                            y: pipe.bottomY,
+                            width: pipe.width,
+                            height: this.canvas.height - pipe.bottomY
+                        };
+
+                        if (this.checkCollision(this.bird, topPipeRect) || this.checkCollision(this.bird, bottomPipeRect)) {
+                            collided = true;
+                            break;
+                        }
+                    }
+                }
+
+                // C. Handle collision consequence
+                if (collided) {
+                    this.bird.triggerInvincibility();
+
+                    // If HP reaches 0, transition to Game Over and record High Score
+                    if (this.bird.hp <= 0) {
+                        this.changeState('GAMEOVER');
+                        if (this.currentDistance > this.highScore) {
+                            this.highScore = this.currentDistance;
+                        }
+                    }
+                }
             }
 
             // Pipe spawning logic:
             // Spawn first pipe, or spawn next pipe when the last pipe's X moves past 200px from right edge
             if (this.pipes.length === 0) {
-                this.pipes.push(new Pipe(this.canvas.width));
+                // Initial pipe is static (isDynamic = false)
+                this.pipes.push(new Pipe(this.canvas.width, currentSpeed, false));
             } else {
                 const lastPipe = this.pipes[this.pipes.length - 1];
                 if (lastPipe.x < this.canvas.width - 200) {
-                    this.pipes.push(new Pipe(this.canvas.width));
+                    // Check if current rounded distance triggers a Dynamic Obstacle Phase (moving pipes):
+                    // Active every 100m interval, with a remainder tolerance range of 0 to 15m.
+                    const dTrigger = Math.floor(this.currentDistance);
+                    const isDynamic = (dTrigger % 100 >= 0 && dTrigger % 100 <= 15) && (dTrigger >= 100);
+                    
+                    this.pipes.push(new Pipe(this.canvas.width, currentSpeed, isDynamic));
+                    
+                    if (isDynamic) {
+                        console.log(`Spawned a dynamic vertically-moving pipe! (Current distance: ${dTrigger} M)`);
+                    }
                 }
             }
 
@@ -101,6 +211,26 @@ export class Game {
     }
 
     /**
+     * Circle-to-Rectangle collision detection algorithm (clamping method / Pythagoras)
+     * @param {Bird} bird - The bird character (circle shape representation)
+     * @param {Object} rect - Bounding box rectangle details (x, y, width, height)
+     * @returns {boolean} True if they intersect
+     */
+    checkCollision(bird, rect) {
+        // Find closest point on the rectangle to the center of the bird circle
+        const closestX = Math.max(rect.x, Math.min(bird.x, rect.x + rect.width));
+        const closestY = Math.max(rect.y, Math.min(bird.y, rect.y + rect.height));
+
+        // Calculate horizontal and vertical distances
+        const distanceX = bird.x - closestX;
+        const distanceY = bird.y - closestY;
+
+        // Use Pythagorean Theorem to determine if distance is less than bird radius
+        const distanceSquared = (distanceX * distanceX) + (distanceY * distanceY);
+        return distanceSquared < (bird.radius * bird.radius);
+    }
+
+    /**
      * Renders visuals on the canvas
      */
     draw() {
@@ -111,23 +241,38 @@ export class Game {
         this.ctx.fillStyle = '#0b0b0f';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-        // Render pipes if game is playing
-        if (this.currentState === 'PLAYING') {
+        // Render gameplay elements (visible in PLAYING, PAUSED, and GAMEOVER states)
+        if (this.currentState === 'PLAYING' || this.currentState === 'PAUSED' || this.currentState === 'GAMEOVER') {
+            // Draw all pipes
             for (let i = 0; i < this.pipes.length; i++) {
                 this.pipes[i].draw(this.ctx);
             }
+
+            // Draw bird character
+            if (this.bird) {
+                this.bird.draw(this.ctx);
+            }
         }
 
-        // Draw temporary indicator to verify game loop is running
-        this.ctx.fillStyle = '#ffffff';
-        this.ctx.font = '24px Outfit, sans-serif';
-        this.ctx.textAlign = 'center';
-        this.ctx.textBaseline = 'middle';
-        this.ctx.fillText(
-            `State: ${this.currentState} | Loop Active | Pipes: ${this.pipes.length}`, 
-            this.canvas.width / 2, 
-            this.canvas.height / 2
-        );
+        // Draw HUD / Overlays using the stateless UI helper
+        if (this.ui) {
+            switch (this.currentState) {
+                case 'MENU':
+                    this.ui.drawMenu(this.ctx, this.isMuted);
+                    break;
+                case 'PLAYING':
+                    this.ui.drawHUD(this.ctx, this.currentDistance, this.bird ? this.bird.hp : 3, this.isMuted);
+                    break;
+                case 'PAUSED':
+                    // Show standard gameplay HUD underneath the pause overlay
+                    this.ui.drawHUD(this.ctx, this.currentDistance, this.bird ? this.bird.hp : 3, this.isMuted);
+                    this.ui.drawPause(this.ctx);
+                    break;
+                case 'GAMEOVER':
+                    this.ui.drawGameOver(this.ctx, this.currentDistance, this.highScore);
+                    break;
+            }
+        }
     }
 
     /**
@@ -136,14 +281,123 @@ export class Game {
      */
     changeState(newState) {
         this.currentState = newState;
+        console.log(`Game state changed to: ${newState}`);
     }
 
     /**
-     * Handles input actions from entry points
-     * @param {string} eventType - Keyboard or mouse event type
-     * @param {any} eventData - Details about the event
+     * Handles keyboard and mouse inputs centralizing trigger routing
+     * @param {string} eventType - Type of action ('keydown', 'keyup', 'mousedown', 'mouseup')
+     * @param {Event} event - Original browser input event details
      */
-    handleInput(eventType, eventData) {
-        // Input handling akan diintegrasikan di fase berikutnya
+    handleInput(eventType, event) {
+        if (eventType === 'keydown') {
+            const key = event.key;
+
+            // 1. MENU state keys
+            if (this.currentState === 'MENU') {
+                if (key === ' ' || key === 'Enter') {
+                    this.changeState('PLAYING');
+                    event.preventDefault();
+                }
+            }
+
+            // 2. PLAYING state keys
+            else if (this.currentState === 'PLAYING') {
+                if (key === ' ' || key === 'ArrowUp') {
+                    // Instantly flap once, hold triggers continuous rise
+                    if (!event.repeat) {
+                        this.bird.flap();
+                    }
+                    this.isJumpPressed = true;
+                    event.preventDefault();
+                } else if (key === 'p' || key === 'P') {
+                    this.changeState('PAUSED');
+                    event.preventDefault();
+                }
+            }
+
+            // 3. PAUSED state keys
+            else if (this.currentState === 'PAUSED') {
+                if (key === 'p' || key === 'P') {
+                    this.changeState('PLAYING');
+                    event.preventDefault();
+                }
+            }
+
+            // 4. GAMEOVER state keys
+            else if (this.currentState === 'GAMEOVER') {
+                if (key === ' ') {
+                    this.restartGame();
+                    event.preventDefault();
+                }
+            }
+        }
+
+        else if (eventType === 'keyup') {
+            const key = event.key;
+            if (key === ' ' || key === 'ArrowUp') {
+                this.isJumpPressed = false;
+            }
+        }
+
+        else if (eventType === 'mousedown') {
+            // Get click coordinates relative to internal 960x540 dimensions
+            const rect = this.canvas.getBoundingClientRect();
+            const mouseX = ((event.clientX - rect.left) / rect.width) * this.canvas.width;
+            const mouseY = ((event.clientY - rect.top) / rect.height) * this.canvas.height;
+
+            // 1. MENU state clicks
+            if (this.currentState === 'MENU') {
+                // Check Start Game button: X: 360-600, Y: 252.5-307.5
+                if (mouseX >= 360 && mouseX <= 600 && mouseY >= 252.5 && mouseY <= 307.5) {
+                    this.changeState('PLAYING');
+                }
+                // Check Mute button: X: 880-940, Y: 20-60
+                else if (mouseX >= 880 && mouseX <= 940 && mouseY >= 20 && mouseY <= 60) {
+                    this.isMuted = !this.isMuted;
+                }
+            }
+
+            // 2. PLAYING state clicks
+            else if (this.currentState === 'PLAYING') {
+                // Check Mute button in top-right corner
+                if (mouseX >= 880 && mouseX <= 940 && mouseY >= 20 && mouseY <= 60) {
+                    this.isMuted = !this.isMuted;
+                } else {
+                    // Regular click flaps the bird and sets hold state
+                    this.bird.flap();
+                    this.isJumpPressed = true;
+                }
+            }
+
+            // 3. GAMEOVER state clicks
+            else if (this.currentState === 'GAMEOVER') {
+                // Check Restart button: X: 360-600, Y: 332.5-387.5
+                if (mouseX >= 360 && mouseX <= 600 && mouseY >= 332.5 && mouseY <= 387.5) {
+                    this.restartGame();
+                }
+            }
+        }
+
+        else if (eventType === 'mouseup') {
+            this.isJumpPressed = false;
+        }
+    }
+
+    /**
+     * Resets bird physics, clears obstacles, resets score, and launches into gameplay
+     */
+    restartGame() {
+        if (this.bird) {
+            this.bird.hp = 3;
+            this.bird.y = 270;
+            this.bird.velocityY = 0;
+            this.bird.isInvincible = false;
+            this.bird.invincibilityTimer = 0;
+        }
+        this.pipes = [];
+        this.currentDistance = 0;
+        this.changeState('PLAYING');
+        console.log("Game restarted.");
     }
 }

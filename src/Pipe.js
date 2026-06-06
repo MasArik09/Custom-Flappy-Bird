@@ -29,7 +29,7 @@ export class Pipe {
     }
 
     /**
-     * Updates the horizontal position of the pipe
+     * Updates the horizontal and vertical position of the pipe
      * @param {number} dt - Delta time in seconds
      */
     update(dt) {
@@ -38,6 +38,25 @@ export class Pipe {
 
         // Move horizontal position to the left
         this.x -= this.speed * timeScale;
+
+        // Linear vertical movement (Fase Pipa Bergerak)
+        if (this.isDynamic) {
+            // Adjust topHeight based on vertical speed and current direction
+            this.topHeight += this.verticalSpeed * this.direction * timeScale;
+
+            // Clamping check with 50px boundary tolerances (canvas height is 540, gap is 150)
+            // Minimum topHeight = 50px. Maximum topHeight = 340px (keeps bottomY at 490px, leaving 50px padding from bottom)
+            if (this.topHeight < 50) {
+                this.topHeight = 50;
+                this.direction = 1; // Reverse direction to move down
+            } else if (this.topHeight > 340) {
+                this.topHeight = 340;
+                this.direction = -1; // Reverse direction to move up
+            }
+
+            // Sync the bottom pipe coordinate Y
+            this.bottomY = this.topHeight + this.gap;
+        }
     }
 
     /**
