@@ -1,3 +1,5 @@
+import { Pipe } from './Pipe.js';
+
 export class Game {
     constructor() {
         this.canvas = document.getElementById('gameCanvas');
@@ -13,9 +15,9 @@ export class Game {
         // Timing variables
         this.lastTime = 0;
 
-        // Core Game properties (to be initialized in future phases)
+        // Core Game properties
         this.bird = null;
-        this.pipes = [];
+        this.pipes = []; // Centralized pipe array
         this.ui = null;
         this.audio = null;
         
@@ -28,6 +30,9 @@ export class Game {
      */
     init() {
         console.log("Game initialized and starting game loop...");
+        
+        // For testing purposes during early phases, let's allow starting directly in PLAYING
+        // when init is called, or we can keep it as MENU. Let's keep it MENU as default.
         this.start();
     }
 
@@ -62,15 +67,41 @@ export class Game {
     }
 
     /**
-     * Stub for updating game logic based on elapsed time (delta time)
+     * Updates game logic based on elapsed time (delta time)
      * @param {number} dt - Delta time in seconds
      */
     update(dt) {
-        // Logika game update akan diimplementasikan pada fase berikutnya
+        // Only update gameplay entities when in PLAYING state
+        if (this.currentState === 'PLAYING') {
+            // Update all pipes
+            for (let i = 0; i < this.pipes.length; i++) {
+                this.pipes[i].update(dt);
+            }
+
+            // Pipe spawning logic:
+            // Spawn first pipe, or spawn next pipe when the last pipe's X moves past 200px from right edge
+            if (this.pipes.length === 0) {
+                this.pipes.push(new Pipe(this.canvas.width));
+            } else {
+                const lastPipe = this.pipes[this.pipes.length - 1];
+                if (lastPipe.x < this.canvas.width - 200) {
+                    this.pipes.push(new Pipe(this.canvas.width));
+                }
+            }
+
+            // Memory management check:
+            // If the first pipe is completely off the left screen edge, remove it
+            if (this.pipes.length > 0) {
+                const firstPipe = this.pipes[0];
+                if (firstPipe.x + firstPipe.width < 0) {
+                    this.pipes.shift();
+                }
+            }
+        }
     }
 
     /**
-     * Stub for rendering visuals on the canvas
+     * Renders visuals on the canvas
      */
     draw() {
         // Clear canvas
@@ -80,16 +111,27 @@ export class Game {
         this.ctx.fillStyle = '#0b0b0f';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
+        // Render pipes if game is playing
+        if (this.currentState === 'PLAYING') {
+            for (let i = 0; i < this.pipes.length; i++) {
+                this.pipes[i].draw(this.ctx);
+            }
+        }
+
         // Draw temporary indicator to verify game loop is running
         this.ctx.fillStyle = '#ffffff';
         this.ctx.font = '24px Outfit, sans-serif';
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'middle';
-        this.ctx.fillText(`State: ${this.currentState} | Loop Active`, this.canvas.width / 2, this.canvas.height / 2);
+        this.ctx.fillText(
+            `State: ${this.currentState} | Loop Active | Pipes: ${this.pipes.length}`, 
+            this.canvas.width / 2, 
+            this.canvas.height / 2
+        );
     }
 
     /**
-     * Stub for changing the game state
+     * Changes the game state
      * @param {string} newState - The state to transition to
      */
     changeState(newState) {
@@ -97,7 +139,7 @@ export class Game {
     }
 
     /**
-     * Stub for handling input actions from entry points
+     * Handles input actions from entry points
      * @param {string} eventType - Keyboard or mouse event type
      * @param {any} eventData - Details about the event
      */
