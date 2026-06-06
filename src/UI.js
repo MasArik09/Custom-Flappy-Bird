@@ -44,7 +44,7 @@ export class UI {
     }
 
     /**
-     * Helper to draw a red vector heart representing character health (HP)
+     * Helper to draw a red vector love heart representing character health (HP)
      * @param {CanvasRenderingContext2D} ctx - Canvas 2D context
      * @param {number} x - Top left X bounding coordinate
      * @param {number} y - Top left Y bounding coordinate
@@ -55,13 +55,21 @@ export class UI {
         ctx.save();
         ctx.fillStyle = color;
         ctx.beginPath();
-        // Heart shape using quadratic bezier curves
-        ctx.moveTo(x, y + size / 4);
-        ctx.quadraticCurveTo(x, y, x + size / 2, y);
-        ctx.quadraticCurveTo(x + size, y, x + size, y + size / 3);
-        ctx.quadraticCurveTo(x + size, y + size * 2 / 3, x + size / 2, y + size);
-        ctx.quadraticCurveTo(x, y + size * 2 / 3, x, y + size / 3);
-        ctx.quadraticCurveTo(x, y, x, y + size / 4);
+        
+        // Top center of the heart
+        const topCenterX = x + size / 2;
+        const topCenterY = y + size * 0.25;
+        
+        ctx.moveTo(topCenterX, topCenterY);
+        
+        // Left lobe and curve down to bottom center
+        ctx.bezierCurveTo(x + size * 0.15, y, x, y + size * 0.15, x, y + size * 0.45);
+        ctx.bezierCurveTo(x, y + size * 0.7, x + size * 0.25, y + size * 0.85, topCenterX, y + size);
+        
+        // Right lobe and curve back up to top center
+        ctx.bezierCurveTo(x + size * 0.75, y + size * 0.85, x + size, y + size * 0.7, x + size, y + size * 0.45);
+        ctx.bezierCurveTo(x + size, y + size * 0.15, x + size * 0.85, y, topCenterX, topCenterY);
+        
         ctx.closePath();
         ctx.fill();
         ctx.restore();
@@ -108,6 +116,37 @@ export class UI {
             ctx.beginPath();
             ctx.arc(x + 12, y + 15, 14, -Math.PI / 3, Math.PI / 3, false);
             ctx.stroke();
+        }
+        ctx.restore();
+    }
+
+    /**
+     * Draws puffy background clouds on the canvas
+     * @param {CanvasRenderingContext2D} ctx - Canvas 2D context
+     * @param {Array} clouds - Collection of background cloud parameters
+     */
+    drawClouds(ctx, clouds) {
+        ctx.save();
+        // Subtle semi-transparent cloud white for premium background blending
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+
+        for (let i = 0; i < clouds.length; i++) {
+            const cloud = clouds[i];
+            ctx.save();
+            ctx.translate(cloud.x, cloud.y);
+            ctx.scale(cloud.scale, cloud.scale);
+
+            // Draw vector puffy cloud path
+            ctx.beginPath();
+            ctx.arc(30, 20, 20, Math.PI * 0.5, Math.PI * 1.5);
+            ctx.arc(55, 10, 25, Math.PI * 1.0, Math.PI * 1.85);
+            ctx.arc(85, 15, 22, Math.PI * 1.3, Math.PI * 2.0);
+            ctx.arc(105, 25, 18, Math.PI * 1.7, Math.PI * 0.5);
+            ctx.lineTo(30, 40);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.restore();
         }
         ctx.restore();
     }

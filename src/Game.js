@@ -1,6 +1,7 @@
 import { Pipe } from './Pipe.js';
 import { Bird } from './Bird.js';
 import { UI } from './UI.js';
+import { Audio } from './Audio.js';
 
 export class Game {
     constructor() {
@@ -21,7 +22,15 @@ export class Game {
         this.bird = new Bird(150, 270); // Posisi awal x=150, y=270 (tengah-tengah vertical)
         this.pipes = []; // Centralized pipe array
         this.ui = new UI();
-        this.audio = null;
+        this.audio = new Audio(); // Instansiasi Web Audio API wrapper
+
+        // Parallax background scrolling clouds
+        this.clouds = [
+            { x: 100, y: 50, scale: 0.8, speed: 0.2 },
+            { x: 400, y: 80, scale: 1.2, speed: 0.3 },
+            { x: 750, y: 40, scale: 0.9, speed: 0.15 },
+            { x: 1050, y: 70, scale: 1.1, speed: 0.25 }
+        ];
 
         // Input and state helpers
         this.isJumpPressed = false;
@@ -82,12 +91,12 @@ export class Game {
      */
     getCurrentSpeed() {
         const distance = this.currentDistance;
-        if (distance <= 50) {
-            return 3.0; // Easy Mode
-        } else if (distance <= 100) {
-            return 4.2; // Medium Mode
+        if (distance <= 100) {
+            return 3.0; // Easy Mode (extended to 100m)
+        } else if (distance <= 200) {
+            return 3.6; // Medium Mode (reduced speed from 4.2)
         } else {
-            return 5.5; // Hard Mode
+            return 4.4; // Hard Mode (reduced speed from 5.5)
         }
     }
 
@@ -96,6 +105,22 @@ export class Game {
      * @param {number} dt - Delta time in seconds
      */
     update(dt) {
+        // Multiplier to scale speed relative to 60 FPS standard
+        const timeScale = dt * 60;
+
+        // Update background clouds (always active to keep background feeling alive)
+        for (let i = 0; i < this.clouds.length; i++) {
+            const cloud = this.clouds[i];
+            cloud.x -= cloud.speed * timeScale;
+            // Recycle cloud if it goes completely off the left edge
+            if (cloud.x < -150 * cloud.scale) {
+                cloud.x = this.canvas.width + 50;
+                cloud.y = Math.random() * 80 + 30; // Random height
+                cloud.scale = Math.random() * 0.6 + 0.7; // Scale between 0.7 and 1.3
+                cloud.speed = Math.random() * 0.15 + 0.15; // Slow scroll speed
+            }
+        }
+
         // Only update gameplay entities when in PLAYING state
         if (this.currentState === 'PLAYING') {
             // 1. Increment distance based on survival time (5 meters per second)
@@ -122,6 +147,12 @@ export class Game {
                     if (pipe.x + pipe.width < this.bird.x - this.bird.radius) {
                         this.currentDistance += 15; // Give significant bonus score (15m)
                         pipe.hasPassed = true;
+                        
+                        // Play score SFX
+                        if (this.audio) {
+                            this.audio.playSFX('score');
+                        }
+                        
                         console.log(`Cleared pipe! +15M Bonus. Current Score: ${Math.floor(this.currentDistance)} M`);
                     }
                 }
@@ -167,10 +198,21 @@ export class Game {
                 // C. Handle collision consequence
                 if (collided) {
                     this.bird.triggerInvincibility();
+                    
+                    // Play hit SFX
+                    if (this.audio) {
+                        this.audio.playSFX('hit');
+                    }
 
                     // If HP reaches 0, transition to Game Over and record High Score
                     if (this.bird.hp <= 0) {
                         this.changeState('GAMEOVER');
+                        
+                        // Stop music on game over
+                        if (this.audio) {
+                            this.audio.stopBGM();
+                        }
+                        
                         if (this.currentDistance > this.highScore) {
                             this.highScore = this.currentDistance;
                         }
@@ -241,6 +283,11 @@ export class Game {
         this.ctx.fillStyle = '#0b0b0f';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
+        // Draw background clouds parallax effect
+        if (this.ui) {
+            this.ui.drawClouds(this.ctx, this.clouds);
+        }
+
         // Render gameplay elements (visible in PLAYING, PAUSED, and GAMEOVER states)
         if (this.currentState === 'PLAYING' || this.currentState === 'PAUSED' || this.currentState === 'GAMEOVER') {
             // Draw all pipes
@@ -296,6 +343,11 @@ export class Game {
             // 1. MENU state keys
             if (this.currentState === 'MENU') {
                 if (key === ' ' || key === 'Enter') {
+                    // Start BGM on user start request (complies with browser autoplay policy)
+                    if (this.audio) {
+                        this.audio.resumeContext();
+                        this.audio.playBGM();
+                    }
                     this.changeState('PLAYING');
                     event.preventDefault();
                 }
@@ -307,6 +359,11 @@ export class Game {
                     // Instantly flap once, hold triggers continuous rise
                     if (!event.repeat) {
                         this.bird.flap();
+                        
+                        // Play jump sound
+                        if (this.audio) {
+                            this.audio.playSFX('flap');
+                        }
                     }
                     this.isJumpPressed = true;
                     event.preventDefault();
@@ -350,11 +407,18 @@ export class Game {
             if (this.currentState === 'MENU') {
                 // Check Start Game button: X: 360-600, Y: 252.5-307.5
                 if (mouseX >= 360 && mouseX <= 600 && mouseY >= 252.5 && mouseY <= 307.5) {
+                    if (this.audio) {
+                        this.audio.resumeContext();
+                        this.audio.playBGM();
+                    }
                     this.changeState('PLAYING');
                 }
                 // Check Mute button: X: 880-940, Y: 20-60
                 else if (mouseX >= 880 && mouseX <= 940 && mouseY >= 20 && mouseY <= 60) {
-                    this.isMuted = !this.isMuted;
+                    if (this.audio) {
+                        this.audio.toggleMute();
+                        this.isMuted = this.audio.isMuted;
+                    }
                 }
             }
 
@@ -362,10 +426,19 @@ export class Game {
             else if (this.currentState === 'PLAYING') {
                 // Check Mute button in top-right corner
                 if (mouseX >= 880 && mouseX <= 940 && mouseY >= 20 && mouseY <= 60) {
-                    this.isMuted = !this.isMuted;
+                    if (this.audio) {
+                        this.audio.toggleMute();
+                        this.isMuted = this.audio.isMuted;
+                    }
                 } else {
                     // Regular click flaps the bird and sets hold state
                     this.bird.flap();
+                    
+                    // Play jump sound
+                    if (this.audio) {
+                        this.audio.playSFX('flap');
+                    }
+                    
                     this.isJumpPressed = true;
                 }
             }
@@ -397,6 +470,12 @@ export class Game {
         }
         this.pipes = [];
         this.currentDistance = 0;
+        
+        // Resume background music on restart
+        if (this.audio) {
+            this.audio.playBGM();
+        }
+        
         this.changeState('PLAYING');
         console.log("Game restarted.");
     }

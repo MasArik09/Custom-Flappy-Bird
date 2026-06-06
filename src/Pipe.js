@@ -7,14 +7,14 @@ export class Pipe {
      */
     constructor(canvasWidth, speed = 3.0, isDynamic = false) {
         this.x = canvasWidth;
-        this.width = 60;
+        this.width = 40;
         this.speed = speed;
-        this.gap = 150;
+        this.gap = 170; // Increased from 150 to 170 for wider vertical traversal space
 
         // Random height for top pipe (canvas height is 540)
         // Leave at least 50px space from top, and 50px space from the bottom (after the gap)
         const minHeight = 50;
-        const maxHeight = 340; // 540 (canvasHeight) - 150 (gap) - 50 (minHeight)
+        const maxHeight = 320; // 540 (canvasHeight) - 170 (gap) - 50 (minHeight) = 320
         this.topHeight = Math.random() * (maxHeight - minHeight) + minHeight;
 
         // Bottom pipe start coordinate Y
@@ -24,7 +24,7 @@ export class Pipe {
         this.hasPassed = false;
 
         // Vertical movement properties for dynamic pipes (Fase Pipa Bergerak)
-        this.verticalSpeed = 1.5;
+        this.verticalSpeed = 0.8; // Reduced from 1.5 to 0.8 for gentler vertical oscillations
         this.direction = 1; // 1: down, -1: up
     }
 
@@ -44,13 +44,13 @@ export class Pipe {
             // Adjust topHeight based on vertical speed and current direction
             this.topHeight += this.verticalSpeed * this.direction * timeScale;
 
-            // Clamping check with 50px boundary tolerances (canvas height is 540, gap is 150)
-            // Minimum topHeight = 50px. Maximum topHeight = 340px (keeps bottomY at 490px, leaving 50px padding from bottom)
+            // Clamping check with 50px boundary tolerances (canvas height is 540, gap is 170)
+            // Minimum topHeight = 50px. Maximum topHeight = 320px (keeps bottomY at 490px, leaving 50px padding from bottom)
             if (this.topHeight < 50) {
                 this.topHeight = 50;
                 this.direction = 1; // Reverse direction to move down
-            } else if (this.topHeight > 340) {
-                this.topHeight = 340;
+            } else if (this.topHeight > 320) {
+                this.topHeight = 320;
                 this.direction = -1; // Reverse direction to move up
             }
 
